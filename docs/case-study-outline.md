@@ -26,7 +26,8 @@ words, 4–5 charts. All simulation data is synthetic; no Gordon code or student
 - How we tested it: two user studies (8 participants, including an RA), three demo
   feedback rounds. Recurring feedback: "agree to all" button, don't force 6 halls, people
   added without consent, duplicate emails, admin table hard to scan.
-- **My role:** _to fill in (which parts I built and led)._
+- **My role:** wrote the problem statement, led most of the front-end design, built the
+  admin interface, ran the user studies, worked with the back end on the data model.
 
 ## 3. What we missed (about 250 words)
 

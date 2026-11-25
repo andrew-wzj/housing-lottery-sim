@@ -29,7 +29,10 @@ into Gordon 360, assign lottery numbers by class year (seniors first), let stude
 roommates easily and correctly, and "implement an algorithm to sort collected housing data
 automatically."
 
-**What we built.** I was one of four student developers. Over two semesters we built:
+**What we built.** I was one of four student developers. I wrote our problem statement,
+led most of the front-end design, built the administrator interface, and ran our user
+studies. I also worked with the back end on the data model, deciding how each part of the
+application mapped to database tables and API calls. Over two semesters, the team built:
 
 - a student application: add roommates by college email, rank up to six halls, answer
   roommate-preference questions, and accept the housing agreements;
@@ -52,10 +55,11 @@ One reviewer at our December demo said it plainly: *"For the admin interface, if
 the team could implement an algorithm that does the room assignments, maybe based on
 first come first serve or some other method."*
 
-Looking back, I think we missed it for two reasons. Our user research focused on the
-form's usability, not on the decision the form fed into. And the hardest question in the
-project, *what is a fair way to assign rooms?*, was never assigned to anyone. It was not a
-UI question or a database question, so it fell between our tasks.
+Looking back, I think we missed it for two reasons, and both were partly mine. I ran our
+user research, and it focused on the form's usability, not on the decision the form fed
+into. And although I wrote the algorithm into our problem statement, the hardest question
+in the project, *what is a fair way to assign rooms?*, was never assigned to anyone. It
+was not a UI question or a database question, so it fell between our tasks.
 
 ## Redefining the problem
 
