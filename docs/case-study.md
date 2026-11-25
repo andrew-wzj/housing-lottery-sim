@@ -30,8 +30,8 @@ roommates easily and correctly, and "implement an algorithm to sort collected ho
 automatically."
 
 **What we built.** I was one of four student developers. I finalized our problem
-statement, led most of the front-end design, built the administrator interface, and ran
-our user studies. I also worked with the back end on the data model and on converting
+statement, led most of the front-end design, built the administrator interface with a
+teammate, and ran our user studies. I also worked with the back end on the data model and on converting
 application data to and from JSON between the interface and the API. Over two semesters,
 the team built:
 
@@ -39,6 +39,8 @@ the team built:
   roommate-preference questions, and accept the housing agreements;
 - an administrator view: a table of every application, with CSV export and a due-date
   setting;
+- a random lottery number for each application, with late applications marked so they
+  sort last (built by teammates);
 - the database tables and API endpoints behind both, following Gordon 360's conventions.
 
 **How we tested it.** We ran two rounds of user studies (the second with eight
@@ -49,8 +51,10 @@ another without their knowledge.
 
 ## What we missed
 
-The fourth need, the algorithm, never got built. Our MVP collected data; the assignment
-itself still happened by hand, starting from the CSV file we exported.
+The fourth need, the algorithm, was only partly built. Each application got a random
+lottery number, but nothing in the app ordered students by class year or placed anyone in
+a hall. The assignment itself still happened by hand, starting from the CSV file we
+exported.
 
 One reviewer at our December demo said it plainly: *"For the admin interface, if possible
 the team could implement an algorithm that does the room assignments, maybe based on
