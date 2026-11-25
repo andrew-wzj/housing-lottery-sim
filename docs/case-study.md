@@ -29,10 +29,11 @@ into Gordon 360, assign lottery numbers by class year (seniors first), let stude
 roommates easily and correctly, and "implement an algorithm to sort collected housing data
 automatically."
 
-**What we built.** I was one of four student developers. I wrote our problem statement,
-led most of the front-end design, built the administrator interface, and ran our user
-studies. I also worked with the back end on the data model, deciding how each part of the
-application mapped to database tables and API calls. Over two semesters, the team built:
+**What we built.** I was one of four student developers. I finalized our problem
+statement, led most of the front-end design, built the administrator interface, and ran
+our user studies. I also worked with the back end on the data model and on converting
+application data to and from JSON between the interface and the API. Over two semesters,
+the team built:
 
 - a student application: add roommates by college email, rank up to six halls, answer
   roommate-preference questions, and accept the housing agreements;
@@ -57,7 +58,7 @@ first come first serve or some other method."*
 
 Looking back, I think we missed it for two reasons, and both were partly mine. I ran our
 user research, and it focused on the form's usability, not on the decision the form fed
-into. And although I wrote the algorithm into our problem statement, the hardest question
+into. And although the algorithm was in the problem statement I finalized, the hardest question
 in the project, *what is a fair way to assign rooms?*, was never assigned to anyone. It
 was not a UI question or a database question, so it fell between our tasks.
 
