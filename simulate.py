@@ -2,6 +2,10 @@
 
     python3 simulate.py --trials 1000 --out results
 
+Rules "average", "highest", "lowest" and "pure lottery" use the v2 mechanism
+(groups rank hall + room size). The row "v1: halls only" re-runs the first
+design (rank halls, automatic split) with the average rule, for comparison.
+
 Each trial builds one campus (students, groups, rooms), draws one set of
 tickets, then runs the assignment once per priority rule on a fresh copy of
 the rooms. Using the same campus and tickets for every rule means the rules
@@ -16,14 +20,18 @@ import statistics
 import time
 from typing import Dict, List
 
-from lottery.assign import RULES, assign, draw_tickets, seed_commitment
+from lottery.assign import RULES, assign, assign_v1, average_priority, draw_tickets, seed_commitment
 from lottery.generate import Config, make_campus
 from lottery.metrics import summarize
 from lottery.model import YEARS
 
 
+V1 = "v1: halls only (average)"
+
+
 def run(trials: int, cfg: Config, base_seed: int) -> Dict[str, Dict[str, List[float]]]:
     data: Dict[str, Dict[str, List[float]]] = {r: {} for r in RULES}
+    data[V1] = {}
     for t in range(trials):
         _, groups, rooms = make_campus(cfg, seed=base_seed + t)
         draw_tickets(groups, seed=f"trial-{base_seed + t}")
@@ -31,6 +39,9 @@ def run(trials: int, cfg: Config, base_seed: int) -> Dict[str, Dict[str, List[fl
             res = assign(groups, copy.deepcopy(rooms), rule)
             for k, v in summarize(groups, res).items():
                 data[name].setdefault(k, []).append(v)
+        res = assign_v1(groups, copy.deepcopy(rooms), average_priority)
+        for k, v in summarize(groups, res).items():
+            data[V1].setdefault(k, []).append(v)
     return data
 
 
@@ -75,24 +86,25 @@ def write_outputs(data, out_dir: str, trials: int, cfg: Config, seconds: float) 
         lines.append(f"| {rule} | " + " | ".join(pct(m(rule, f'{y}.top3')) for y in YEARS)
                      + f" | {pct(m(rule, 'all.top3'))} |")
     lines += ["", "## Unplaced and split students", "",
-              "| Rule | Unplaced | In a split group | Split operations per lottery |",
+              "| Rule | Unplaced | In a split group | Groups split per lottery |",
               "|---|---:|---:|---:|"]
     for rule in data:
         lines.append(f"| {rule} | {pct(m(rule, 'all.unplaced'))} | {pct(m(rule, 'all.split'))} "
-                     f"| {m(rule, 'groups.split_ops'):.1f} |")
+                     f"| {m(rule, 'groups.split'):.1f} |")
     lines += ["", "## Does joining an older group help underclass students?", "",
               "First-choice rate of sophomores and freshmen, depending on whether their group",
               "has older members.", "",
               "| Rule | In a mixed-year group | In a same-year group | Gap |",
               "|---|---:|---:|---:|"]
-    for rule in data:
+    for rule in RULES:
         a, b = m(rule, "underclass_in_mixed.first"), m(rule, "underclass_in_same.first")
         lines.append(f"| {rule} | {pct(a)} | {pct(b)} | {100 * (a - b):+.1f} pts |")
     lines += ["", "## How risky is a short list?", "",
-              "Share of students left unplaced, by how many halls their group ranked (average rule).", "",
-              "| Halls ranked | " + " | ".join(str(k) for k in range(1, 7)) + " |",
-              "|---|" + "---:|" * 6,
-              "| Unplaced | " + " | ".join(pct(m("average", f"ranked_{k}.unplaced")) for k in range(1, 7)) + " |"]
+              "Share of students left unplaced, by how many halls their group listed (average rule).", "",
+              "| Mechanism | " + " | ".join(str(k) for k in range(1, 7)) + " |",
+              "|---|" + "---:|" * 6]
+    for rule, label in (("average", "v2: hall + room size"), (V1, "v1: halls only")):
+        lines.append(f"| {label} | " + " | ".join(pct(m(rule, f"ranked_{k}.unplaced")) for k in range(1, 7)) + " |")
     lines += ["", "## Verifiable draw (rule R5)", "",
               "Example: before the draw, publish the commitment; after, publish the seed.", "",
               f"- seed: `trial-{0}`", f"- SHA-256 commitment: `{seed_commitment('trial-0')}`", ""]

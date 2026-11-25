@@ -7,7 +7,7 @@ import random
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 
-from .model import YEARS, Group, Room, Student
+from .model import YEARS, Group, Option, Room, Student
 
 
 @dataclass
@@ -32,6 +32,8 @@ class Config:
     pref_counts: Dict[int, float] = field(default_factory=lambda: {
         1: 0.05, 2: 0.10, 3: 0.25, 4: 0.20, 5: 0.15, 6: 0.25})
     allow_split_share: float = 0.70
+    want_single_share: float = 0.40   # solo applicants who prefer a single to a double
+    together_first_share: float = 0.50   # split-willing groups that keep the group together first
     taste_noise: float = 0.6     # 0 = everyone agrees on popularity; higher = more varied tastes
     halls: List[HallSpec] = field(default_factory=lambda: [
         HallSpec("Alder", 3.0, {2: 0.4, 4: 0.6}),          # new suites, most wanted
@@ -88,18 +90,62 @@ def make_groups(students: List[Student], cfg: Config, rng: random.Random) -> Lis
             taken.add(mate.id)
             members.append(mate)
 
-        # Rank halls: Plackett-Luce draw from popularity with personal noise.
-        appeal = {h.name: h.popularity * rng.lognormvariate(0, cfg.taste_noise) for h in halls}
-        k = _pick(rng, cfg.pref_counts)
-        prefs = []
-        remaining = dict(appeal)
-        for _ in range(min(k, len(halls))):
+        # True taste: a full ranking of all halls (Plackett-Luce draw from
+        # popularity with personal noise). The group lists its top k.
+        remaining = {h.name: h.popularity * rng.lognormvariate(0, cfg.taste_noise) for h in halls}
+        ranking = []
+        while remaining:
             name = rng.choices(list(remaining), weights=list(remaining.values()))[0]
-            prefs.append(name)
+            ranking.append(name)
             del remaining[name]
-        groups.append(Group(f"g{len(groups):04d}", members, prefs,
-                            allow_split=rng.random() < cfg.allow_split_share))
+        k = _pick(rng, cfg.pref_counts)
+        allow_split = rng.random() < cfg.allow_split_share
+        g = Group(f"g{len(groups):04d}", members, ranking, k, allow_split)
+        g.options = make_options(g, cfg, rng)
+        groups.append(g)
     return groups
+
+
+def make_options(g: Group, cfg: Config, rng: random.Random) -> List[Option]:
+    """Turn a group's taste into a v2 list of (hall, room size) options.
+
+    Assumption: because v2 shows room types on the form, a group lists its k
+    favorite halls among those with at least one usable option for it.
+    - A group lists the tightest room type that fits all of it.
+    - Groups that accept splitting also list the largest smaller room type;
+      some try every hall together before splitting ("together first"),
+      the rest split before leaving a hall ("hall first").
+    - Solo applicants list both singles and doubles where a hall has both;
+      some put the single first.
+    """
+    types = {h.name: sorted(h.room_mix) for h in cfg.halls}
+    together_first = rng.random() < cfg.together_first_share
+    want_single = rng.random() < cfg.want_single_share
+    together, split, per_hall = [], [], []
+    listed = 0
+    for hall in g.ranking:
+        if listed == g.k:
+            break
+        t = types[hall]
+        opts = []
+        if g.size == 1:
+            solo = [s for s in t if s <= 2]
+            opts = [(hall, s) for s in (solo if want_single else sorted(solo, reverse=True))]
+        else:
+            fit = [s for s in t if s >= g.size]
+            smaller = [s for s in t if 2 <= s < g.size] or [s for s in t if s < g.size]
+            if fit:
+                opts.append((hall, fit[0]))
+                together.append((hall, fit[0]))
+            if g.allow_split and smaller:
+                opts.append((hall, smaller[-1]))
+                split.append((hall, smaller[-1]))
+        if opts:
+            listed += 1
+            per_hall.extend(opts)
+    if g.size > 1 and together_first:
+        return together + split
+    return per_hall
 
 
 def make_rooms(students: List[Student], cfg: Config) -> List[Room]:

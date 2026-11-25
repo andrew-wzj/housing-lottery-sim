@@ -15,16 +15,21 @@ All halls, students and numbers here are synthetic. No real student data is used
   does not change the odds.
 - **Verifiable draw**: the SHA-256 hash of the seed is published before the draw and the
   seed after, so anyone can recompute the order.
-- Groups rank **1 to 6 halls** (not forced to fill all six).
-- Groups say in advance whether they may be **split** if no room fits them.
+- Groups rank **(hall, room size) options** from 1 to 6 halls, for example
+  "Alder quad > Cedar triple > Alder doubles (split)". Listing a room size smaller than the
+  group is how a group agrees to split; it then splits only inside that hall.
 
 ## Algorithm
 
-Random Serial Dictatorship: groups take turns in lottery order. On its turn, a group gets
-the smallest room that fits it in the highest-ranked hall that still has one. If none
-fits, a group that agreed to splitting is halved and both halves try again right away;
-otherwise it goes to the admin's unplaced list. Ranking halls honestly is always a
-group's best strategy; `tests/test_assign.py` checks this by brute force.
+Random Serial Dictatorship over options: groups take turns in lottery order. On its turn,
+a group gets the first option on its list that can be filled completely (every piece of
+the group in its own room of that size, all in that hall). Nothing is reserved unless the
+whole option fits. If no option fits, the group goes to the admin's unplaced list.
+Listing options honestly is always a group's best strategy, including split options;
+`tests/test_assign.py` checks this by brute force on small cases.
+
+`assign_v1` keeps the first design for comparison: groups rank halls only, the room is
+picked by best fit, and a group that allowed it is halved automatically when nothing fits.
 
 ## Run
 
@@ -34,11 +39,13 @@ python3 simulate.py --trials 1000 --out results
 ```
 
 `simulate.py` builds a synthetic campus per trial, draws one set of tickets, and runs the
-assignment under four priority rules (average, highest, lowest, pure lottery) on the same
-inputs. Results go to `results/summary.md` and `results/summary.csv`.
+assignment under four priority rules (average, highest, lowest, pure lottery) plus the v1
+mechanism, all on the same inputs. Results go to `results/summary.md` and `results/summary.csv`.
 
 ## Limitations
 
 - Groups and preferences are generated, not observed; real students would form groups
   differently in response to the rules.
 - Rooms are assigned by hall and size; exact room numbers stay an admin step.
+- How groups order their options (together first vs. same hall first) is an assumption
+  (`together_first_share`, default 0.5) and moves the split rate noticeably.

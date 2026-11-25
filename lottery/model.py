@@ -1,11 +1,16 @@
 """Data model for the housing lottery."""
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 # Class-year points used for group priority (rule R3).
 YEAR_POINTS = {"senior": 4, "junior": 3, "sophomore": 2, "freshman": 1}
 YEARS = ["senior", "junior", "sophomore", "freshman"]
+
+# One line on a group's ranked list: (hall, room size).
+# If the room size is smaller than the group, choosing it means the group agrees
+# to split into rooms of that size, all in that hall.
+Option = Tuple[str, int]
 
 
 @dataclass
@@ -21,10 +26,17 @@ class Group:
 
     id: str
     members: List[Student]
-    prefs: List[str]          # ranked hall names, 1 to 6 of them
-    allow_split: bool         # rule R7
+    ranking: List[str]        # the group's true ranking of every hall (used to score outcomes)
+    k: int                    # how many halls the group lists (1 to 6)
+    allow_split: bool         # v1 rule R7; in v2 consent is given per option instead
+    options: List[Option] = field(default_factory=list)   # v2 ranked list
     ticket: float = 0.0       # random lottery number, one per group (R4)
     priority: float = 0.0     # filled in by the priority rule (R3)
+
+    @property
+    def halls(self) -> List[str]:
+        """The v1 list: the group's top k halls."""
+        return self.ranking[:self.k]
 
     @property
     def size(self) -> int:
@@ -54,9 +66,10 @@ class Placement:
 
     student: Student
     group_id: str
-    hall: Optional[str]       # None if unplaced
+    hall: Optional[str]         # None if unplaced
     room_id: Optional[str]
-    choice_rank: Optional[int]  # 1 = first choice; None if unplaced
+    hall_rank: Optional[int]    # position of the hall in the group's true ranking (1 = favorite)
+    choice_rank: Optional[int]  # which line of the submitted list was used
     was_split: bool = False
     reason: str = ""
 
@@ -65,4 +78,4 @@ class Placement:
 class Result:
     placements: Dict[str, Placement]  # by student id
     order: List[str]                  # group ids in processing order
-    splits: int = 0                   # number of split operations
+    splits: int = 0                   # number of groups that were split

@@ -1,10 +1,16 @@
-"""Priority rules and the Random Serial Dictatorship assignment (section 3)."""
+"""Priority rules and two assignment mechanisms.
+
+- assign():    v2. Groups rank (hall, room size) options. Random Serial
+               Dictatorship over options; splitting only where the group listed it.
+- assign_v1(): v1. Groups rank halls only; the room is picked by best fit and a
+               group that allowed it is halved automatically when nothing fits.
+"""
 
 import hashlib
 import random
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Set, Tuple
 
-from .model import YEAR_POINTS, Group, Placement, Result, Room
+from .model import YEAR_POINTS, Group, Placement, Result, Room, Student
 
 # --- Priority rules (R3 and alternatives compared in the simulation) ------
 
@@ -61,66 +67,126 @@ def lottery_order(groups: List[Group], rule: PriorityRule) -> List[Group]:
 
 
 class Inventory:
-    """Open beds, bucketed by (hall, gender, free beds) for O(1) best-fit lookup."""
+    """Open beds, bucketed by (hall, gender, room size, free beds)."""
 
     def __init__(self, rooms: List[Room]):
-        self.max_size = max((r.size for r in rooms), default=0)
-        self._buckets: Dict[Tuple[str, str, int], List[Room]] = {}
-        # Reverse so pop() returns rooms in their original order (deterministic).
+        self.sizes = sorted({r.size for r in rooms})
+        self._buckets: Dict[Tuple[str, str, int, int], List[Room]] = {}
+        # Reverse so the last element is the earliest room (deterministic picks).
         for r in reversed(rooms):
-            if r.free > 0:
-                self._buckets.setdefault((r.hall, r.gender, r.free), []).append(r)
+            self._add(r)
 
-    def best_fit(self, hall: str, gender: str, need: int) -> Optional[Room]:
-        """The room with the fewest free beds that still fits `need` people."""
-        for free in range(need, self.max_size + 1):
-            bucket = self._buckets.get((hall, gender, free))
-            if bucket:
-                return bucket[-1]
-        return None
+    def _add(self, r: Room) -> None:
+        if r.free > 0:
+            self._buckets.setdefault((r.hall, r.gender, r.size, r.free), []).append(r)
+
+    def find(self, hall: str, gender: str, need: int, size: Optional[int] = None,
+             exclude: Set[int] = frozenset()) -> Optional[Room]:
+        """Best fit: the room with the fewest free beds that holds `need` people.
+
+        With `size`, only rooms of that type count. `exclude` holds id()s of
+        rooms already reserved in the same step.
+        """
+        best = None
+        for s in ([size] if size else self.sizes):
+            for free in range(need, s + 1):
+                for r in reversed(self._buckets.get((hall, gender, s, free), ())):
+                    if id(r) not in exclude:
+                        if best is None or (free, s) < (best.free, best.size):
+                            best = r
+                        break
+                else:
+                    continue
+                break
+        return best
 
     def occupy(self, room: Room, student_ids: List[str]) -> None:
-        bucket = self._buckets[(room.hall, room.gender, room.free)]
-        bucket.pop()
+        self._buckets[(room.hall, room.gender, room.size, room.free)].remove(room)
         room.occupants.extend(student_ids)
-        if room.free > 0:
-            self._buckets.setdefault((room.hall, room.gender, room.free), []).append(room)
+        self._add(room)
 
 
-# --- Assignment -----------------------------------------------------------
+def _placement(s: Student, g: Group, hall, room, choice, split, reason="") -> Placement:
+    rank = g.ranking.index(hall) + 1 if hall in g.ranking else None
+    return Placement(s, g.id, hall, room.id if room else None, rank, choice, split, reason)
+
+
+# --- v2: (hall, room size) options -----------------------------------------
+
+
+def pieces(members: List[Student], room_size: int) -> List[List[Student]]:
+    """Cut a group into rooms of `room_size`; the last piece may be smaller."""
+    return [members[i:i + room_size] for i in range(0, len(members), room_size)]
 
 
 def assign(groups: List[Group], rooms: List[Room], rule: PriorityRule) -> Result:
-    """Random Serial Dictatorship with best-fit rooms and optional splitting.
+    """Random Serial Dictatorship over (hall, room size) options.
 
-    Groups must already have tickets (see draw_tickets).
-    Rooms are modified in place (occupants are filled in).
+    On its turn a group gets the first option on its list that can be filled
+    entirely: every piece of the group in its own room of that size, all in
+    that hall. Nothing is reserved unless the whole option fits. A group whose
+    options all fail goes to the unplaced list. Splitting happens only through
+    options the group listed itself.
     """
     inv = Inventory(rooms)
     order = lottery_order(groups, rule)
     placements: Dict[str, Placement] = {}
     splits = 0
 
-    def place(g: Group, members, was_split: bool) -> None:
-        nonlocal splits
-        for rank, hall in enumerate(g.prefs, start=1):
-            room = inv.best_fit(hall, g.gender, len(members))
+    for g in order:
+        for choice, (hall, size) in enumerate(g.options, start=1):
+            parts = pieces(g.members, size)
+            plan, used = [], set()
+            for part in parts:
+                room = inv.find(hall, g.gender, len(part), size, used)
+                if room is None:
+                    break
+                used.add(id(room))
+                plan.append((room, part))
+            else:
+                split = len(parts) > 1
+                splits += split
+                for room, part in plan:
+                    inv.occupy(room, [s.id for s in part])
+                    for s in part:
+                        placements[s.id] = _placement(s, g, hall, room, choice, split)
+                break
+        else:
+            for s in g.members:
+                placements[s.id] = _placement(s, g, None, None, None, False,
+                                              "no listed option could be filled")
+    return Result(placements=placements, order=[g.id for g in order], splits=splits)
+
+
+# --- v1: halls only, automatic split ---------------------------------------
+
+
+def assign_v1(groups: List[Group], rooms: List[Room], rule: PriorityRule) -> Result:
+    """The first design: rank halls, best-fit room, halve the group if needed."""
+    inv = Inventory(rooms)
+    order = lottery_order(groups, rule)
+    placements: Dict[str, Placement] = {}
+    split_groups: Set[str] = set()
+
+    def place(g: Group, members: List[Student], was_split: bool) -> None:
+        for choice, hall in enumerate(g.halls, start=1):
+            room = inv.find(hall, g.gender, len(members))
             if room is not None:
                 inv.occupy(room, [s.id for s in members])
                 for s in members:
-                    placements[s.id] = Placement(s, g.id, hall, room.id, rank, was_split)
+                    placements[s.id] = _placement(s, g, hall, room, choice, was_split)
                 return
         if g.allow_split and len(members) > 1:
-            splits += 1
+            split_groups.add(g.id)
             half = (len(members) + 1) // 2
             # Both halves keep the group's place in line and try right away.
             place(g, members[:half], True)
             place(g, members[half:], True)
             return
         for s in members:
-            placements[s.id] = Placement(s, g.id, None, None, None, was_split,
-                                         reason="no fitting bed in ranked halls")
+            placements[s.id] = _placement(s, g, None, None, None, was_split,
+                                          "no fitting bed in ranked halls")
 
     for g in order:
         place(g, g.members, False)
-    return Result(placements=placements, order=[g.id for g in order], splits=splits)
+    return Result(placements=placements, order=[g.id for g in order], splits=len(split_groups))

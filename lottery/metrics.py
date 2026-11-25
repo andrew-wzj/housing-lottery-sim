@@ -6,7 +6,10 @@ from .model import YEAR_POINTS, YEARS, Group, Result
 
 
 def summarize(groups: List[Group], result: Result) -> Dict[str, float]:
-    """Rates are shares of students (0-1). Keys look like 'senior.first'."""
+    """Rates are shares of students (0-1). Keys look like 'senior.first'.
+
+    'first' means the student got the hall the group truly likes best.
+    """
     out: Dict[str, float] = {}
     by_year = {y: [] for y in YEARS}
     for p in result.placements.values():
@@ -14,8 +17,8 @@ def summarize(groups: List[Group], result: Result) -> Dict[str, float]:
 
     def rates(prefix: str, ps) -> None:
         n = len(ps) or 1
-        out[f"{prefix}.first"] = sum(p.choice_rank == 1 for p in ps) / n
-        out[f"{prefix}.top3"] = sum(p.choice_rank is not None and p.choice_rank <= 3 for p in ps) / n
+        out[f"{prefix}.first"] = sum(p.hall_rank == 1 for p in ps) / n
+        out[f"{prefix}.top3"] = sum(p.hall_rank is not None and p.hall_rank <= 3 for p in ps) / n
         out[f"{prefix}.unplaced"] = sum(p.hall is None for p in ps) / n
         out[f"{prefix}.split"] = sum(p.was_split for p in ps) / n
 
@@ -38,8 +41,8 @@ def summarize(groups: List[Group], result: Result) -> Dict[str, float]:
     # How risky is a short list? Unplaced rate by number of halls ranked.
     by_len = {}
     for g in groups:
-        by_len.setdefault(len(g.prefs), []).extend(result.placements[s.id] for s in g.members)
+        by_len.setdefault(g.k, []).extend(result.placements[s.id] for s in g.members)
     for k, ps in by_len.items():
         out[f"ranked_{k}.unplaced"] = sum(p.hall is None for p in ps) / len(ps)
-    out["groups.split_ops"] = result.splits
+    out["groups.split"] = result.splits
     return out
