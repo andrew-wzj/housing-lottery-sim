@@ -7,6 +7,8 @@ missing part: the assignment rules.
 
 All halls, students and numbers here are synthetic. No real student data is used.
 
+Read the write-up: [docs/case-study.md](docs/case-study.md).
+
 ## Rules
 
 - **Groups** of 1–4 students form by mutual confirmation; one gender category per group.
@@ -53,3 +55,8 @@ mechanism, all on the same inputs. Results go to `results/summary.md` and `resul
 - Rooms are assigned by hall and size; exact room numbers stay an admin step.
 - How groups order their options (together first vs. same hall first) is an assumption
   (`together_first_share`, default 0.5) and moves the split rate noticeably.
+
+## Credits
+
+Written with Claude, Anthropic's AI assistant. The rules and design decisions are the
+author's. MIT licensed.

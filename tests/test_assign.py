@@ -20,21 +20,21 @@ class V1WorkedExample(unittest.TestCase):
     """The four-group example from the first design doc, section 4."""
 
     def test_example(self):
-        rooms = [Room("F1", "Ferrin", "F", 2),
-                 Room("N2", "Nyland", "F", 2), Room("N3", "Nyland", "F", 3)]
-        a = grp("A", ["senior", "senior"], ["Ferrin", "Nyland"])
-        b = grp("B", ["senior", "junior", "junior"], ["Ferrin", "Nyland"])
-        c = grp("C", ["junior", "sophomore"], ["Ferrin"], split=True)
-        d = grp("D", ["sophomore", "freshman"], ["Nyland"])
+        rooms = [Room("A1", "Alder", "F", 2),
+                 Room("B2", "Birch", "F", 2), Room("B3", "Birch", "F", 3)]
+        a = grp("A", ["senior", "senior"], ["Alder", "Birch"])
+        b = grp("B", ["senior", "junior", "junior"], ["Alder", "Birch"])
+        c = grp("C", ["junior", "sophomore"], ["Alder"], split=True)
+        d = grp("D", ["sophomore", "freshman"], ["Birch"])
         res = assign_v1([d, c, b, a], rooms, average_priority)
 
         self.assertEqual(res.order, ["A", "B", "C", "D"])
         p = res.placements
-        self.assertEqual((p["A0"].room_id, p["A0"].hall_rank), ("F1", 1))
-        self.assertEqual((p["B0"].room_id, p["B0"].hall_rank), ("N3", 2))
+        self.assertEqual((p["A0"].room_id, p["A0"].hall_rank), ("A1", 1))
+        self.assertEqual((p["B0"].room_id, p["B0"].hall_rank), ("B3", 2))
         self.assertIsNone(p["C0"].hall)
         self.assertTrue(p["C0"].was_split and p["C1"].was_split)
-        self.assertEqual(p["D0"].room_id, "N2")
+        self.assertEqual(p["D0"].room_id, "B2")
         self.assertEqual(res.splits, 1)
 
     def test_no_split_without_consent(self):
