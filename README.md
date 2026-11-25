@@ -20,8 +20,8 @@ All halls, students and numbers here are synthetic. No real student data is used
   group is how a group agrees to split; it then splits only inside that hall.
 
 - A group may tick **"if all our options are full, place us anywhere"**. After its listed
-  options fail, it gets the tightest room in any hall that holds the whole group (never
-  split). The form warns groups that list only one or two halls, using the simulated risk.
+  options fail, it gets the tightest room in any hall that holds the whole group. A second
+  box, "you may split us if needed", lets it be halved when the whole group fits nowhere. The form warns groups that list only one or two halls, using the simulated risk.
 
 ## Algorithm
 

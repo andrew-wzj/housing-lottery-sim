@@ -166,20 +166,41 @@ def assign(groups: List[Group], rooms: List[Room], rule: PriorityRule) -> Result
 def _place_anywhere(inv: Inventory, g: Group, placements: Dict[str, Placement]) -> bool:
     """Fallback ("place us anywhere"): the tightest room in any hall that holds
     the whole group. Halls are tried in a fixed public order, not the group's
-    taste, since the group did not rank them. Never splits a group: a group
-    that wants to split lists split options itself.
+    taste, since the group did not rank them. If the whole group fits nowhere
+    and it ticked "you may split us", it is halved and each half tries again.
+    Halves are reserved together: if any member cannot be placed, nothing is.
     """
+    plan = _plan_anywhere(inv, g.members, g.gender, g.fallback_split, set())
+    if plan is None:
+        return False
+    split = len(plan) > 1
+    for room, part in plan:
+        inv.occupy(room, [s.id for s in part])
+        for s in part:
+            placements[s.id] = _placement(s, g, room.hall, room, None, split, fallback=True)
+    return True
+
+
+def _plan_anywhere(inv: Inventory, members: List[Student], gender: str, may_split: bool,
+                   used: Set[int]) -> Optional[List[Tuple[Room, List[Student]]]]:
     best = None
     for hall in inv.halls:
-        room = inv.find(hall, g.gender, g.size)
+        room = inv.find(hall, gender, len(members), exclude=used)
         if room is not None and (best is None or room.free < best.free):
             best = room
-    if best is None:
-        return False
-    inv.occupy(best, [s.id for s in g.members])
-    for s in g.members:
-        placements[s.id] = _placement(s, g, best.hall, best, None, False, fallback=True)
-    return True
+    if best is not None:
+        used.add(id(best))
+        return [(best, members)]
+    if not may_split or len(members) == 1:
+        return None
+    half = (len(members) + 1) // 2
+    first = _plan_anywhere(inv, members[:half], gender, may_split, used)
+    if first is None:
+        return None
+    second = _plan_anywhere(inv, members[half:], gender, may_split, used)
+    if second is None:
+        return None
+    return first + second
 
 
 # --- v1: halls only, automatic split ---------------------------------------

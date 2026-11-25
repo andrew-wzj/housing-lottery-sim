@@ -48,12 +48,14 @@ def run(trials: int, cfg: Config, base_seed: int) -> Dict[str, Dict[str, List[fl
         for share in FALLBACK_SHARES:
             for g in groups:
                 g.fallback = g.fallback_draw < share
+                g.fallback_split = g.fallback and g.allow_split
             res = assign(groups, copy.deepcopy(rooms), average_priority)
             key = f"fallback {share:.0%}"
             for k, v in summarize(groups, res).items():
                 data.setdefault(key, {}).setdefault(k, []).append(v)
         for g in groups:
             g.fallback = g.fallback_draw < cfg.fallback_share
+            g.fallback_split = g.fallback and g.allow_split
     return data
 
 
@@ -123,13 +125,15 @@ def write_outputs(data, out_dir: str, trials: int, cfg: Config, seconds: float) 
         lines.append(f"| {label} | " + " | ".join(pct(m(rule, f"ranked_{k}.unplaced")) for k in range(1, 7)) + " |")
     lines += ["", "## The fallback option", "",
               "Share of groups that tick \"if all our options are full, place us anywhere\"",
-              "(average rule, v2). Same campuses and tickets in every column.", "",
+              "(average rule, v2). Groups that accept splitting also tick \"you may split us\".",
+              "Same campuses and tickets in every column.", "",
               "| Groups that tick it | " + " | ".join(f"{x:.0%}" for x in FALLBACK_SHARES) + " |",
               "|---|" + "---:|" * len(FALLBACK_SHARES)]
     keys = [f"fallback {x:.0%}" for x in FALLBACK_SHARES]
     rows = [("Unplaced, all students", "all.unplaced", pct),
             ("Unplaced, listed 1 hall", "ranked_1.unplaced", pct),
             ("Placed by the fallback", "all.fallback", pct),
+            ("Unplaced, groups of 4", "size_4.unplaced", pct),
             ("First-choice hall, all", "all.first", pct),
             ("Fallback hall, rank in own taste (1-6)", "fallback.mean_hall_rank",
              lambda x: "n/a" if x != x else f"{x:.1f}")]

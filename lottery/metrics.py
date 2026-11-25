@@ -45,6 +45,12 @@ def summarize(groups: List[Group], result: Result) -> Dict[str, float]:
         by_len.setdefault(g.k, []).extend(result.placements[s.id] for s in g.members)
     for k, ps in by_len.items():
         out[f"ranked_{k}.unplaced"] = sum(p.hall is None for p in ps) / len(ps)
+    by_size = {}
+    for g in groups:
+        by_size.setdefault(g.size, []).extend(result.placements[s.id] for s in g.members)
+    for k, ps in by_size.items():
+        out[f"size_{k}.unplaced"] = sum(p.hall is None for p in ps) / len(ps)
+
     # Where do fallback placements land, in the group's own (unsubmitted) taste?
     fb = [p.hall_rank for p in result.placements.values() if p.via_fallback]
     out["fallback.mean_hall_rank"] = sum(fb) / len(fb) if fb else float("nan")

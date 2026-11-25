@@ -105,6 +105,7 @@ def make_groups(students: List[Student], cfg: Config, rng: random.Random) -> Lis
         g.options = make_options(g, cfg, rng)
         g.fallback_draw = rng.random()   # kept so a sweep can vary the share on the same campus
         g.fallback = g.fallback_draw < cfg.fallback_share
+        g.fallback_split = g.fallback and allow_split
         groups.append(g)
     return groups
 

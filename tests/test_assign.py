@@ -133,6 +133,22 @@ class Fallback(unittest.TestCase):
         res = assign([g], [Room("a", "Y", "F", 1), Room("b", "Y", "F", 1)], average_priority)
         self.assertIsNone(res.placements["G0"].hall)
 
+    def test_fallback_split_only_when_ticked(self):
+        rooms = [Room("a", "Y", "F", 2), Room("b", "Z", "F", 2)]
+        g = grp("G", ["senior"] * 4, options=[("X", 4)])
+        g.fallback, g.fallback_split = True, True
+        res = assign([g], rooms, average_priority)
+        self.assertEqual({res.placements[f"G{i}"].room_id for i in range(4)}, {"a", "b"})
+        self.assertTrue(all(res.placements[f"G{i}"].was_split for i in range(4)))
+
+    def test_fallback_split_reserves_nothing_if_incomplete(self):
+        rooms = [Room("a", "Y", "F", 2), Room("b", "Z", "F", 1)]
+        g = grp("G", ["senior"] * 4, options=[("X", 4)])
+        g.fallback, g.fallback_split = True, True
+        res = assign([g], rooms, average_priority)
+        self.assertIsNone(res.placements["G0"].hall)
+        self.assertTrue(all(not r.occupants for r in rooms))
+
     def test_listed_options_still_come_first(self):
         g = grp("G", ["senior"], options=[("Y", 1)])
         g.fallback = True

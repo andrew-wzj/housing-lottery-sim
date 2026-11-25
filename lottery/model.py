@@ -31,6 +31,7 @@ class Group:
     allow_split: bool         # v1 rule R7; in v2 consent is given per option instead
     options: List[Option] = field(default_factory=list)   # v2 ranked list
     fallback: bool = False    # v2: "if all my options are full, place us anywhere"
+    fallback_split: bool = False  # v2: "...and you may split us if needed"
     fallback_draw: float = 1.0  # simulation only: lets a sweep vary how many groups tick it
     ticket: float = 0.0       # random lottery number, one per group (R4)
     priority: float = 0.0     # filled in by the priority rule (R3)
