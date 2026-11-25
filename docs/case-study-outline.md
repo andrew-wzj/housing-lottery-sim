@@ -83,7 +83,7 @@ Findings (one chart each):
    about 85%, freshmen about 40%. Pure lottery: everyone about 64%.
    _Chart: first-choice rate by class year, average vs. pure lottery._
 2. **The "senior carries friends" effect.** Underclass students gain by grouping with a
-   senior: about +27 points under the highest rule, about +12 under the average rule.
+   senior: about +28 points under the highest rule, about +12 under the average rule.
    Average reduces the incentive but doesn't remove it.
    _Chart: gap by rule._
 3. **Short lists are risky.** With only 1 hall listed, 28% are left unplaced; with 6
@@ -91,7 +91,7 @@ Findings (one chart each):
    fallback, the 1-hall risk drops to about 5%.
    _Chart: unplaced rate by halls listed, with and without fallback._
 4. **My prediction was wrong.** I expected that ranking room types would reduce splits.
-   It didn't: splits rose from about 16% to 18%. Ranking room types turns splitting into a
+   It didn't: splits rose from about 16% to 19%. Ranking room types turns splitting into a
    choice: groups that value the hall split to get it; groups that value staying together
    rarely split.
    _Chart: split rate and first-choice rate as groups lean "together first" vs.
