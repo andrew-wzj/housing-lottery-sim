@@ -107,6 +107,40 @@ class V2Options(unittest.TestCase):
         self.assertIsNone(inv.find("X", "F", 2, 2, {id(r1), id(r2)}))
 
 
+class Fallback(unittest.TestCase):
+    def test_fallback_places_group_after_options_fail(self):
+        rooms = [Room("x", "X", "F", 2), Room("y", "Y", "F", 2)]
+        first = grp("A", ["senior"] * 2, options=[("X", 2)], ticket=0.1)
+        late = grp("B", ["senior"] * 2, options=[("X", 2)], ticket=0.2)
+        late.fallback = True
+        res = assign([first, late], rooms, average_priority)
+        p = res.placements["B0"]
+        self.assertEqual(p.room_id, "y")
+        self.assertTrue(p.via_fallback)
+        self.assertIsNone(p.choice_rank)
+
+    def test_without_fallback_group_stays_unplaced(self):
+        rooms = [Room("x", "X", "F", 2), Room("y", "Y", "F", 2)]
+        first = grp("A", ["senior"] * 2, options=[("X", 2)], ticket=0.1)
+        late = grp("B", ["senior"] * 2, options=[("X", 2)], ticket=0.2)
+        res = assign([first, late], rooms, average_priority)
+        self.assertIsNone(res.placements["B0"].hall)
+        self.assertEqual(rooms[1].occupants, [])
+
+    def test_fallback_never_splits(self):
+        g = grp("G", ["senior"] * 2, options=[("X", 4)])
+        g.fallback = True
+        res = assign([g], [Room("a", "Y", "F", 1), Room("b", "Y", "F", 1)], average_priority)
+        self.assertIsNone(res.placements["G0"].hall)
+
+    def test_listed_options_still_come_first(self):
+        g = grp("G", ["senior"], options=[("Y", 1)])
+        g.fallback = True
+        res = assign([g], [Room("x", "X", "F", 1), Room("y", "Y", "F", 1)], average_priority)
+        self.assertEqual(res.placements["G0"].room_id, "y")
+        self.assertFalse(res.placements["G0"].via_fallback)
+
+
 class Rules(unittest.TestCase):
     def test_priority_rules(self):
         g = grp("G", ["senior", "sophomore"], ["X"])

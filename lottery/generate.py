@@ -33,6 +33,7 @@ class Config:
         1: 0.05, 2: 0.10, 3: 0.25, 4: 0.20, 5: 0.15, 6: 0.25})
     allow_split_share: float = 0.70
     want_single_share: float = 0.40   # solo applicants who prefer a single to a double
+    fallback_share: float = 0.50      # groups that tick "place us anywhere if all options are full"
     together_first_share: float = 0.50   # split-willing groups that keep the group together first
     taste_noise: float = 0.6     # 0 = everyone agrees on popularity; higher = more varied tastes
     halls: List[HallSpec] = field(default_factory=lambda: [
@@ -102,6 +103,8 @@ def make_groups(students: List[Student], cfg: Config, rng: random.Random) -> Lis
         allow_split = rng.random() < cfg.allow_split_share
         g = Group(f"g{len(groups):04d}", members, ranking, k, allow_split)
         g.options = make_options(g, cfg, rng)
+        g.fallback_draw = rng.random()   # kept so a sweep can vary the share on the same campus
+        g.fallback = g.fallback_draw < cfg.fallback_share
         groups.append(g)
     return groups
 

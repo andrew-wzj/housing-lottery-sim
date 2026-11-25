@@ -21,6 +21,7 @@ def summarize(groups: List[Group], result: Result) -> Dict[str, float]:
         out[f"{prefix}.top3"] = sum(p.hall_rank is not None and p.hall_rank <= 3 for p in ps) / n
         out[f"{prefix}.unplaced"] = sum(p.hall is None for p in ps) / n
         out[f"{prefix}.split"] = sum(p.was_split for p in ps) / n
+        out[f"{prefix}.fallback"] = sum(p.via_fallback for p in ps) / n
 
     for y in YEARS:
         rates(y, by_year[y])
@@ -44,5 +45,8 @@ def summarize(groups: List[Group], result: Result) -> Dict[str, float]:
         by_len.setdefault(g.k, []).extend(result.placements[s.id] for s in g.members)
     for k, ps in by_len.items():
         out[f"ranked_{k}.unplaced"] = sum(p.hall is None for p in ps) / len(ps)
+    # Where do fallback placements land, in the group's own (unsubmitted) taste?
+    fb = [p.hall_rank for p in result.placements.values() if p.via_fallback]
+    out["fallback.mean_hall_rank"] = sum(fb) / len(fb) if fb else float("nan")
     out["groups.split"] = result.splits
     return out

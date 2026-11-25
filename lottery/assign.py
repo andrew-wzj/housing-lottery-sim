@@ -71,6 +71,7 @@ class Inventory:
 
     def __init__(self, rooms: List[Room]):
         self.sizes = sorted({r.size for r in rooms})
+        self.halls = sorted({r.hall for r in rooms})
         self._buckets: Dict[Tuple[str, str, int, int], List[Room]] = {}
         # Reverse so the last element is the earliest room (deterministic picks).
         for r in reversed(rooms):
@@ -106,9 +107,11 @@ class Inventory:
         self._add(room)
 
 
-def _placement(s: Student, g: Group, hall, room, choice, split, reason="") -> Placement:
+def _placement(s: Student, g: Group, hall, room, choice, split, reason="",
+               fallback=False) -> Placement:
     rank = g.ranking.index(hall) + 1 if hall in g.ranking else None
-    return Placement(s, g.id, hall, room.id if room else None, rank, choice, split, reason)
+    return Placement(s, g.id, hall, room.id if room else None, rank, choice, split,
+                     fallback, reason)
 
 
 # --- v2: (hall, room size) options -----------------------------------------
@@ -152,10 +155,31 @@ def assign(groups: List[Group], rooms: List[Room], rule: PriorityRule) -> Result
                         placements[s.id] = _placement(s, g, hall, room, choice, split)
                 break
         else:
+            if g.fallback and _place_anywhere(inv, g, placements):
+                continue
             for s in g.members:
                 placements[s.id] = _placement(s, g, None, None, None, False,
                                               "no listed option could be filled")
     return Result(placements=placements, order=[g.id for g in order], splits=splits)
+
+
+def _place_anywhere(inv: Inventory, g: Group, placements: Dict[str, Placement]) -> bool:
+    """Fallback ("place us anywhere"): the tightest room in any hall that holds
+    the whole group. Halls are tried in a fixed public order, not the group's
+    taste, since the group did not rank them. Never splits a group: a group
+    that wants to split lists split options itself.
+    """
+    best = None
+    for hall in inv.halls:
+        room = inv.find(hall, g.gender, g.size)
+        if room is not None and (best is None or room.free < best.free):
+            best = room
+    if best is None:
+        return False
+    inv.occupy(best, [s.id for s in g.members])
+    for s in g.members:
+        placements[s.id] = _placement(s, g, best.hall, best, None, False, fallback=True)
+    return True
 
 
 # --- v1: halls only, automatic split ---------------------------------------

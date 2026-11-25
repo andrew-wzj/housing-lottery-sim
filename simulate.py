@@ -27,6 +27,7 @@ from lottery.model import YEARS
 
 
 V1 = "v1: halls only (average)"
+FALLBACK_SHARES = [0.0, 0.25, 0.5, 0.75, 1.0]
 
 
 def run(trials: int, cfg: Config, base_seed: int) -> Dict[str, Dict[str, List[float]]]:
@@ -42,6 +43,17 @@ def run(trials: int, cfg: Config, base_seed: int) -> Dict[str, Dict[str, List[fl
         res = assign_v1(groups, copy.deepcopy(rooms), average_priority)
         for k, v in summarize(groups, res).items():
             data[V1].setdefault(k, []).append(v)
+        # Fallback sweep: same campus and tickets, only the share of groups
+        # that tick "place us anywhere" changes.
+        for share in FALLBACK_SHARES:
+            for g in groups:
+                g.fallback = g.fallback_draw < share
+            res = assign(groups, copy.deepcopy(rooms), average_priority)
+            key = f"fallback {share:.0%}"
+            for k, v in summarize(groups, res).items():
+                data.setdefault(key, {}).setdefault(k, []).append(v)
+        for g in groups:
+            g.fallback = g.fallback_draw < cfg.fallback_share
     return data
 
 
@@ -63,7 +75,11 @@ def write_outputs(data, out_dir: str, trials: int, cfg: Config, seconds: float) 
                             f"{s[int(0.05 * (len(s) - 1))]:.4f}",
                             f"{s[int(0.95 * (len(s) - 1))]:.4f}"])
 
-    m = lambda rule, key: statistics.mean(data[rule][key])
+    def m(rule: str, key: str) -> float:
+        vals = [v for v in data[rule][key] if v == v]   # drop NaN (no fallback placements)
+        return statistics.mean(vals) if vals else float("nan")
+
+    main = list(RULES) + [V1]
     lines = [
         "# Simulation results",
         "",
@@ -76,19 +92,19 @@ def write_outputs(data, out_dir: str, trials: int, cfg: Config, seconds: float) 
         "| Rule | " + " | ".join(y.title() for y in YEARS) + " | All |",
         "|---|" + "---:|" * (len(YEARS) + 1),
     ]
-    for rule in data:
+    for rule in main:
         lines.append(f"| {rule} | " + " | ".join(pct(m(rule, f'{y}.first')) for y in YEARS)
                      + f" | {pct(m(rule, 'all.first'))} |")
     lines += ["", "## Top-3 hall, by class year", "",
               "| Rule | " + " | ".join(y.title() for y in YEARS) + " | All |",
               "|---|" + "---:|" * (len(YEARS) + 1)]
-    for rule in data:
+    for rule in main:
         lines.append(f"| {rule} | " + " | ".join(pct(m(rule, f'{y}.top3')) for y in YEARS)
                      + f" | {pct(m(rule, 'all.top3'))} |")
     lines += ["", "## Unplaced and split students", "",
               "| Rule | Unplaced | In a split group | Groups split per lottery |",
               "|---|---:|---:|---:|"]
-    for rule in data:
+    for rule in main:
         lines.append(f"| {rule} | {pct(m(rule, 'all.unplaced'))} | {pct(m(rule, 'all.split'))} "
                      f"| {m(rule, 'groups.split'):.1f} |")
     lines += ["", "## Does joining an older group help underclass students?", "",
@@ -105,6 +121,20 @@ def write_outputs(data, out_dir: str, trials: int, cfg: Config, seconds: float) 
               "|---|" + "---:|" * 6]
     for rule, label in (("average", "v2: hall + room size"), (V1, "v1: halls only")):
         lines.append(f"| {label} | " + " | ".join(pct(m(rule, f"ranked_{k}.unplaced")) for k in range(1, 7)) + " |")
+    lines += ["", "## The fallback option", "",
+              "Share of groups that tick \"if all our options are full, place us anywhere\"",
+              "(average rule, v2). Same campuses and tickets in every column.", "",
+              "| Groups that tick it | " + " | ".join(f"{x:.0%}" for x in FALLBACK_SHARES) + " |",
+              "|---|" + "---:|" * len(FALLBACK_SHARES)]
+    keys = [f"fallback {x:.0%}" for x in FALLBACK_SHARES]
+    rows = [("Unplaced, all students", "all.unplaced", pct),
+            ("Unplaced, listed 1 hall", "ranked_1.unplaced", pct),
+            ("Placed by the fallback", "all.fallback", pct),
+            ("First-choice hall, all", "all.first", pct),
+            ("Fallback hall, rank in own taste (1-6)", "fallback.mean_hall_rank",
+             lambda x: "n/a" if x != x else f"{x:.1f}")]
+    for label, key, fmt in rows:
+        lines.append(f"| {label} | " + " | ".join(fmt(m(k, key)) for k in keys) + " |")
     lines += ["", "## Verifiable draw (rule R5)", "",
               "Example: before the draw, publish the commitment; after, publish the seed.", "",
               f"- seed: `trial-{0}`", f"- SHA-256 commitment: `{seed_commitment('trial-0')}`", ""]

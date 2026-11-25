@@ -30,6 +30,8 @@ class Group:
     k: int                    # how many halls the group lists (1 to 6)
     allow_split: bool         # v1 rule R7; in v2 consent is given per option instead
     options: List[Option] = field(default_factory=list)   # v2 ranked list
+    fallback: bool = False    # v2: "if all my options are full, place us anywhere"
+    fallback_draw: float = 1.0  # simulation only: lets a sweep vary how many groups tick it
     ticket: float = 0.0       # random lottery number, one per group (R4)
     priority: float = 0.0     # filled in by the priority rule (R3)
 
@@ -71,6 +73,7 @@ class Placement:
     hall_rank: Optional[int]    # position of the hall in the group's true ranking (1 = favorite)
     choice_rank: Optional[int]  # which line of the submitted list was used
     was_split: bool = False
+    via_fallback: bool = False
     reason: str = ""
 
 
